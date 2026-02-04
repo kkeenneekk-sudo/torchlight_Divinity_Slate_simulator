@@ -1,11 +1,54 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { RotateCw, Trash2, RefreshCw, AlertTriangle, FlipHorizontal, Layers, Youtube, Twitch, User } from 'lucide-react';
+
+// 使用內嵌 SVG 代替 Lucide 以確保在所有環境（如 GitHub Pages / Canvas）都能正常顯示
+const Icon = ({ name, size = 16, className = "" }) => {
+  const icons = {
+    RotateCw: <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8m0-5v5h-5" />,
+    Trash2: (
+      <>
+        <path d="M3 6h18" />
+        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+        <line x1="10" x2="10" y1="11" y2="17" />
+        <line x1="14" x2="14" y1="11" y2="17" />
+      </>
+    ),
+    RefreshCw: <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8m0-5v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16m0 5v-5h5" />,
+    AlertTriangle: <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3ZM12 9v4m0 4h.01" />,
+    FlipHorizontal: <path d="M8 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h3m8-18h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3M12 20V4M9 20l3-3-3-3m6-10-3 3 3 3" />,
+    Layers: <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.1 6.27a2 2 0 0 0 0 3.46l9.07 4.09a2 2 0 0 0 1.66 0l9.07-4.09a2 2 0 0 0 0-3.46Z" />,
+    Youtube: <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 2-2 58.38 58.38 0 0 1 15 0 2 2 0 0 1 2 2 24.12 24.12 0 0 1 0 10 2 2 0 0 1-2 2 58.38 58.38 0 0 1-15 0 2 2 0 0 1-2-2Zm10-5L10 9.5v5Z" />,
+    Twitch: <path d="M21 2H3v16h5v4l4-4h5l4-4V2Zm-10 9V7m5 4V7" />,
+    User: (
+      <>
+        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </>
+    )
+  };
+
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width={size} 
+      height={size} 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+    >
+      {icons[name]}
+    </svg>
+  );
+};
 
 const GRID_SIZE = 6;
 const CELL_DISPLAY_SIZE = 55;
 const GAP = 6;
 
-// 定義 24 格有效區域 (核心規則)
 const isOriginalZone = (r, c) => {
   const inCenter = (r >= 1 && r <= 4 && c >= 1 && c <= 4);
   const inTop = (r === 0 && (c === 2 || c === 3));
@@ -17,9 +60,9 @@ const isOriginalZone = (r, c) => {
 
 const PIECE_TYPES = {
   BASIC_SQ: { id: 'BASIC_SQ', name: '基礎神板 (2x2)', cells: [[0,0], [0,1], [1,0], [1,1]], color: '#4f46e5', limit: 99 },
-  BASIC_L: { id: 'BASIC_L', name: '基礎神板 (L4)', cells: [[0,0], [1,0], [2,0], [2,1]], color: '#6366f1', limit: 99, canMirror: true },
+  BASIC_L: { id: 'BASIC_L', name: '基礎神板 (L4)', cells: [[0,0], [1,0], [2,0], [2,1]], color: '#6366f1', limit: 99 },
   BASIC_T: { id: 'BASIC_T', name: '基礎神板 (T)', cells: [[0,0], [0,1], [0,2], [1,1]], color: '#818cf8', limit: 99 },
-  BASIC_Z: { id: 'BASIC_Z', name: '基礎神板 (Z)', cells: [[0,0], [0,1], [1,1], [1,2]], color: '#4338ca', limit: 99, canMirror: true },
+  BASIC_Z: { id: 'BASIC_Z', name: '基礎神板 (Z)', cells: [[0,0], [0,1], [1,1], [1,2]], color: '#4338ca', limit: 99 },
   TRIANGLE: { id: 'TRIANGLE', name: '神性一角 (L3)', cells: [[0,0], [1,0], [1,1]], color: '#10b981', limit: 3 },
   SMALL_FRY: { id: 'SMALL_FRY', name: '群星輝隕 (1x2)', cells: [[0,0], [0,1]], color: '#f59e0b', limit: 3 },
   BIG_FRY: { id: 'BIG_FRY', name: '寰空神隙 (1x6)', cells: [[0,0], [0,1], [0,2], [0,3], [0,4], [0,5]], color: '#ef4444', limit: 1 },
@@ -33,11 +76,9 @@ const PieceMiniPreview = ({ cells, color, size = 10 }) => {
   const rows = cells.map(c => c[0]);
   const cols = cells.map(c => c[1]);
   const minR = Math.min(...rows);
-  const maxR = Math.max(...rows);
   const minC = Math.min(...cols);
-  const maxC = Math.max(...cols);
-  const width = maxC - minC + 1;
-  const height = maxR - minR + 1;
+  const width = Math.max(...cols) - minC + 1;
+  const height = Math.max(...rows) - minR + 1;
   
   return (
     <div className="grid gap-[1px] p-1 bg-slate-900/50 rounded" style={{ gridTemplateColumns: `repeat(${width}, ${size}px)` }}>
@@ -54,7 +95,6 @@ const App = () => {
   const [selectedType, setSelectedType] = useState(null); 
   const [currentCells, setCurrentCells] = useState([]);   
   const [hoverPos, setHoverPos] = useState(null);         
-  const [isMirrored, setIsMirrored] = useState(false);
   const [grabOffset, setGrabOffset] = useState({ r: 0, c: 0 });
   const [originalPos, setOriginalPos] = useState(null);
 
@@ -86,7 +126,6 @@ const App = () => {
 
   const toggleMirror = () => {
     if (selectedType) {
-      setIsMirrored(!isMirrored);
       setCurrentCells(prev => prev.map(([r, c]) => [r, -(c - grabOffset.c) + grabOffset.c]));
     }
   };
@@ -94,13 +133,8 @@ const App = () => {
   const handleDiscard = () => {
     setSelectedType(null);
     setCurrentCells([]);
-    setIsMirrored(false);
     setGrabOffset({ r: 0, c: 0 });
     setOriginalPos(null);
-  };
-
-  const handleBoardMouseLeave = () => {
-    setHoverPos(null);
   };
 
   const handleSelectMenuType = (type) => {
@@ -111,7 +145,6 @@ const App = () => {
       const offset = { r: Math.floor((Math.min(...rows) + Math.max(...rows)) / 2), c: Math.floor((Math.min(...cols) + Math.max(...cols)) / 2) };
       setSelectedType(type);
       setCurrentCells(type.cells);
-      setIsMirrored(false);
       setGrabOffset(offset);
       setOriginalPos(null); 
     }
@@ -155,100 +188,87 @@ const App = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleRotateActive, selectedType]);
+  }, [handleRotateActive]);
+
+  const displayRoot = useMemo(() => {
+    if (hoverPos) return { r: hoverPos.r - grabOffset.r, c: hoverPos.c - grabOffset.c };
+    if (originalPos) return { r: originalPos.r, c: originalPos.c };
+    return null;
+  }, [hoverPos, originalPos, grabOffset]);
 
   const hasInternalNeighbor = (pieceCells, dr, dc, direction) => {
     const [tr, tc] = direction;
     return pieceCells.some(([r, c]) => r === dr + tr && c === dc + tc);
   };
 
-  const getOverlapBgColor = (count) => {
-    if (count <= 1) return 'transparent';
-    if (count === 2) return 'rgba(239, 68, 68, 0.45)'; 
-    if (count === 3) return 'rgba(220, 38, 38, 0.75)'; 
-    return 'rgba(153, 27, 27, 0.95)'; 
-  };
-
-  const displayRoot = useMemo(() => {
-    if (hoverPos) {
-      return { r: hoverPos.r - grabOffset.r, c: hoverPos.c - grabOffset.c };
-    }
-    if (originalPos) {
-      return { r: originalPos.r, c: originalPos.c };
-    }
-    return null;
-  }, [hoverPos, originalPos, grabOffset]);
-
   return (
-    <div className="flex flex-col items-center min-h-screen bg-slate-900 text-slate-100 p-4 font-sans select-none">
+    <div className="flex flex-col items-center min-h-screen bg-slate-900 text-slate-100 p-4 font-sans select-none overflow-x-hidden">
       <div className="max-w-6xl w-full">
-        <header className="mb-6 flex justify-between items-end border-b border-slate-700 pb-4">
-          <div className="flex flex-col">
+        <header className="mb-6 flex flex-col md:flex-row justify-between items-center md:items-end border-b border-slate-700 pb-4 gap-4 text-center md:text-left">
+          <div className="flex flex-col items-center md:items-start">
             <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-200 mb-2">
-              神板佈置模擬器 <span className="text-sm font-normal text-slate-500">v0.1.5</span>
+              神板佈置模擬器 <span className="text-sm font-normal text-slate-500">v0.1.0</span>
             </h1>
             <div className="flex flex-col gap-1 text-xs text-slate-400 font-medium">
               <div className="flex items-center gap-2">
-                <User size={12} className="text-cyan-400"/> 開發者：ZKD
-                <span className="mx-1">|</span>
-                開發工具：Google Gemini
+                <Icon name="User" size={12} className="text-cyan-400"/> 開發者：ZKD | 開發工具：Google Gemini
               </div>
-              <div className="flex gap-4 mt-1">
-                <a href="https://www.youtube.com/@zkd_yt" target="_blank" className="text-red-600 hover:text-red-500 transition-colors flex items-center gap-1 font-bold"><Youtube size={12}/> YouTube @ZKD</a>
-                <a href="https://www.twitch.tv/zkdeng" target="_blank" className="text-purple-600 hover:text-purple-500 transition-colors flex items-center gap-1 font-bold"><Twitch size={12}/> Twitch @zkdeng</a>
+              <div className="flex gap-4 mt-1 font-bold">
+                <a href="https://www.youtube.com/@ZKDeng" target="_blank" className="text-red-600 flex items-center gap-1"><Icon name="Youtube @ZKD" size={12}/> YouTube</a>
+                <a href="https://www.twitch.tv/zkdeng" target="_blank" className="text-purple-600 flex items-center gap-1"><Icon name="Twitch @zkdeng" size={12}/> Twitch</a>
               </div>
             </div>
           </div>
-          <button onClick={() => { setPlacedPieces([]); handleDiscard(); }} className="flex items-center gap-2 bg-slate-800 hover:bg-red-900/40 text-red-400 px-4 py-2 rounded-lg transition-all border border-red-900/50 shadow-lg shrink-0 text-sm">
-            <RefreshCw size={16} /> 全盤重置
+          <button onClick={() => { setPlacedPieces([]); handleDiscard(); }} className="flex items-center gap-2 bg-slate-800 hover:bg-red-900/40 text-red-400 px-4 py-2 rounded-lg border border-red-900/50 shadow-lg text-sm shrink-0">
+            <Icon name="RefreshCw" size={16} /> 全盤重置
           </button>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-4 flex flex-col gap-6">
-            <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700 shadow-xl">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-400 uppercase tracking-widest text-sm">
-                <Layers size={18} /> 神板倉庫
-              </h2>
-              <div className="space-y-3 overflow-y-auto max-h-[60vh] lg:max-h-[50vh] pr-2 custom-scrollbar">
-                {Object.values(PIECE_TYPES).map(type => {
-                  const current = counts[type.id] || 0;
-                  const isMax = current >= type.limit;
-                  const isSelected = selectedType?.id === type.id;
-                  return (
-                    <button key={type.id} disabled={isMax && !isSelected} onClick={() => handleSelectMenuType(type)} className={`w-full p-3 rounded-xl border-2 text-left transition-all flex items-center gap-4 ${isSelected ? 'border-orange-500 bg-orange-500/10 shadow-[0_0_15px_rgba(249,115,22,0.2)]' : isMax ? 'opacity-40 cursor-not-allowed border-slate-700 grayscale' : 'border-slate-700 bg-slate-800 hover:bg-slate-700 hover:border-slate-500'}`}>
-                      <div className="w-12 h-12 flex items-center justify-center shrink-0">
-                        <PieceMiniPreview cells={type.cells} color={type.color} size={8} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-xs truncate uppercase tracking-tighter">{type.name}</div>
-                        <div className={`text-[10px] mt-1 font-mono ${isMax ? 'text-red-400 font-bold' : 'text-slate-500'}`}>{current} / {type.limit === 99 ? '∞' : type.limit}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* 左側倉庫 */}
+          <div className="lg:col-span-4 bg-slate-800/50 p-6 rounded-2xl border border-slate-700 shadow-xl">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-400 uppercase tracking-widest text-sm">
+              <Icon name="Layers" size={18} /> 神板倉庫
+            </h2>
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 overflow-y-auto max-h-[40vh] lg:max-h-[60vh] pr-2 custom-scrollbar">
+              {Object.values(PIECE_TYPES).map(type => {
+                const current = counts[type.id] || 0;
+                const isMax = current >= type.limit;
+                const isSelected = selectedType?.id === type.id;
+                return (
+                  <button key={type.id} disabled={isMax && !isSelected} onClick={() => handleSelectMenuType(type)} className={`p-3 rounded-xl border-2 text-left transition-all flex items-center gap-3 ${isSelected ? 'border-orange-500 bg-orange-500/10' : isMax ? 'opacity-40 cursor-not-allowed border-slate-700 grayscale' : 'border-slate-700 bg-slate-800 hover:bg-slate-700'}`}>
+                    <div className="w-10 h-10 flex items-center justify-center shrink-0">
+                      <PieceMiniPreview cells={type.cells} color={type.color} size={6} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-[10px] truncate uppercase leading-tight">{type.name}</div>
+                      <div className={`text-[9px] mt-1 font-mono ${isMax ? 'text-red-400 font-bold' : 'text-slate-500'}`}>{current} / {type.limit === 99 ? '∞' : type.limit}</div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
+          {/* 右側棋盤 */}
           <div className="lg:col-span-8 flex flex-col items-center">
             <div className="h-12 flex items-center gap-4 mb-2">
-              {hasOverlap && <div className="px-6 py-2 rounded-full flex items-center gap-2 bg-red-500 text-white shadow-lg animate-pulse font-bold text-xs"><Layers size={14} /> 神版發生重疊</div>}
-              {hasPlacementError && <div className="px-6 py-2 rounded-full flex items-center gap-2 bg-orange-500 text-white shadow-lg font-bold text-xs"><AlertTriangle size={14} /> 超出有效區</div>}
+              {hasOverlap && <div className="px-6 py-2 rounded-full flex items-center gap-2 bg-red-500 text-white shadow-lg animate-pulse font-bold text-xs"><Icon name="Layers" size={14} /> 神板發生重疊</div>}
+              {hasPlacementError && <div className="px-6 py-2 rounded-full flex items-center gap-2 bg-orange-500 text-white shadow-lg font-bold text-xs"><Icon name="AlertTriangle" size={14} /> 超出有效區</div>}
             </div>
 
             <div 
-              onMouseLeave={handleBoardMouseLeave}
-              className="relative bg-slate-950 p-6 rounded-[2.5rem] border-[10px] border-slate-800 shadow-2xl touch-none"
+              onMouseLeave={() => setHoverPos(null)}
+              className="relative bg-slate-950 p-4 sm:p-6 rounded-[2.5rem] border-[10px] border-slate-800 shadow-2xl touch-none"
             >
               <div className="grid gap-[6px]" style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, ${CELL_DISPLAY_SIZE}px)` }}>
                 {[...Array(GRID_SIZE)].map((_, r) => [...Array(GRID_SIZE)].map((_, c) => {
                   const isZone = isOriginalZone(r, c);
                   const overlapCount = gridOccupancy[r][c];
                   return (
-                    <div key={`${r}-${c}`} onMouseEnter={() => setHoverPos({r, c})} onTouchStart={() => setHoverPos({r, c})} onClick={() => onCellClick(r, c)} className={`relative w-full h-full rounded-lg transition-all cursor-pointer border border-slate-700/30 ${isZone ? 'bg-slate-800 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]' : 'bg-slate-900/30'}`} style={{ width: CELL_DISPLAY_SIZE, height: CELL_DISPLAY_SIZE }}>
+                    <div key={`${r}-${c}`} onMouseEnter={() => setHoverPos({r, c})} onTouchStart={() => setHoverPos({r, c})} onClick={() => onCellClick(r, c)} className={`relative rounded-lg transition-all cursor-pointer border border-slate-700/30 ${isZone ? 'bg-slate-800 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]' : 'bg-slate-900/30'}`} style={{ width: CELL_DISPLAY_SIZE, height: CELL_DISPLAY_SIZE }}>
                       {overlapCount > 1 && (
-                        <div className="absolute inset-0 z-50 rounded-lg flex items-center justify-center border-2 border-red-400 border-dashed" style={{ backgroundColor: getOverlapBgColor(overlapCount) }}>
+                        <div className="absolute inset-0 z-50 rounded-lg flex items-center justify-center border-2 border-red-400 border-dashed bg-red-600/40">
                           <span className="text-white text-xl font-black drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">{overlapCount}</span>
                         </div>
                       )}
@@ -257,7 +277,8 @@ const App = () => {
                 }))}
               </div>
 
-              <div className="absolute inset-0 p-6 pointer-events-none z-20">
+              {/* 已放置的神板 */}
+              <div className="absolute inset-0 p-4 sm:p-6 pointer-events-none z-20">
                 {placedPieces.map((piece) => (
                   <div key={piece.instanceId} className="relative">
                     {piece.cells.map(([dr, dc], cIdx) => {
@@ -268,15 +289,16 @@ const App = () => {
                       const hasR = hasInternalNeighbor(piece.cells, dr, dc, [0, 1]);
                       if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) return null;
                       return (
-                        <div key={`${piece.instanceId}-c-${cIdx}`} className={`absolute transition-colors duration-200 ${!isOriginalZone(nr, nc) ? 'animate-pulse ring-2 ring-orange-500' : ''}`} style={{ width: CELL_DISPLAY_SIZE, height: CELL_DISPLAY_SIZE, left: nc * (CELL_DISPLAY_SIZE + GAP), top: nr * (CELL_DISPLAY_SIZE + GAP), backgroundColor: piece.color, borderTop: hasT ? 'none' : '2px solid white', borderBottom: hasB ? 'none' : '2px solid white', borderLeft: hasL ? 'none' : '2px solid white', borderRight: hasR ? 'none' : '2px solid white', borderTopLeftRadius: (!hasT && !hasL) ? '8px' : '0', borderTopRightRadius: (!hasT && !hasR) ? '8px' : '0', borderBottomLeftRadius: (!hasB && !hasL) ? '8px' : '0', borderBottomRightRadius: (!hasB && !hasR) ? '8px' : '0', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }} />
+                        <div key={`${piece.instanceId}-c-${cIdx}`} className={`absolute transition-colors duration-200 ${!isOriginalZone(nr, nc) ? 'animate-pulse ring-2 ring-orange-500' : ''}`} style={{ width: CELL_DISPLAY_SIZE, height: CELL_DISPLAY_SIZE, left: nc * (CELL_DISPLAY_SIZE + GAP), top: nr * (CELL_DISPLAY_SIZE + GAP), backgroundColor: piece.color, borderTop: hasT ? 'none' : '2px solid white', borderBottom: hasB ? 'none' : '2px solid white', borderLeft: hasL ? 'none' : '2px solid white', borderRight: hasR ? 'none' : '2px solid white', borderTopLeftRadius: (!hasT && !hasL) ? '8px' : '0', borderTopRightRadius: (!hasT && !hasR) ? '8px' : '0', borderBottomLeftRadius: (!hasB && !hasL) ? '8px' : '0', borderBottomRightRadius: (!hasB && !hasR) ? '8px' : '0' }} />
                       );
                     })}
                   </div>
                 ))}
               </div>
 
+              {/* 選取中的預覽 */}
               {displayRoot && selectedType && (
-                <div className="absolute inset-0 p-6 pointer-events-none z-40">
+                <div className="absolute inset-0 p-4 sm:p-6 pointer-events-none z-40">
                    {currentCells.map(([dr, dc], idx) => {
                     const nr = displayRoot.r + dr;
                     const nc = displayRoot.c + dc;
@@ -288,30 +310,24 @@ const App = () => {
               )}
             </div>
 
-            {/* 控制區：三個核心按鈕橫向排列 */}
+            {/* 控制區 */}
             <div className="mt-8 flex gap-3 w-full justify-center">
               <button onClick={handleRotateActive} disabled={!selectedType} className={`flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-2 transition-all active:scale-95 shadow-xl ${selectedType ? 'bg-slate-800 border-cyan-500 text-cyan-400 hover:bg-slate-700' : 'bg-slate-900/50 border-slate-800 text-slate-700 opacity-50'}`}>
-                <RotateCw size={32} />
+                <Icon name="RotateCw" size={32} />
                 <span className="mt-2 font-bold text-xs tracking-tighter">旋轉 (R)</span>
               </button>
               <button onClick={toggleMirror} disabled={!selectedType} className={`flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-2 transition-all active:scale-95 shadow-xl ${selectedType ? 'bg-slate-800 border-purple-500 text-purple-400 hover:bg-slate-700' : 'bg-slate-900/50 border-slate-800 text-slate-700 opacity-50'}`}>
-                <FlipHorizontal size={32} />
+                <Icon name="FlipHorizontal" size={32} />
                 <span className="mt-2 font-bold text-xs tracking-tighter">鏡像 (M)</span>
               </button>
-              {/* 垃圾桶現在排在鏡像右邊 */}
               <button onClick={handleDiscard} disabled={!selectedType} className={`flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-2 transition-all active:scale-95 shadow-xl ${selectedType ? 'bg-slate-800 border-red-500 text-red-400 hover:bg-red-900/20' : 'bg-slate-900/50 border-slate-800 text-slate-700 opacity-50'}`}>
-                <Trash2 size={32} className={selectedType ? 'animate-pulse' : ''} />
-                <span className="mt-2 font-bold text-xs tracking-tighter uppercase">丟棄</span>
+                <Icon name="Trash2" size={32} className={selectedType ? 'animate-pulse' : ''} />
+                <span className="mt-2 font-bold text-xs tracking-tighter uppercase">丟棄 (ESC)</span>
               </button>
             </div>
-
-            <div className="mt-6 flex flex-wrap justify-center gap-6 text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em]">
-              <div className="flex items-center gap-2"><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">R</kbd> 旋轉</div>
-              <div className="flex items-center gap-2"><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">M</kbd> 鏡像</div>
-              <div className="flex items-center gap-2"><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">ESC</kbd> 丟棄</div>
-            </div>
-            <div className="mt-4 text-[9px] text-slate-500 text-center max-w-xs">
-              提示：選取神板後，滑鼠離開棋盤會自動歸位，您可以點擊按鈕或按 R/M 鍵進行調整，確認後再點擊棋盤放置。
+            
+            <div className="mt-6 text-[9px] text-slate-500 text-center max-w-xs">
+              提示：選取後，滑鼠離開棋盤會自動歸位，確認後點擊棋盤放置。點擊已放置的神板可重新抓起。
             </div>
           </div>
         </div>
