@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>神板佈置模擬器v0.1.0 by ZKD</title>
+    <title>神板佈置模擬器v0.1.1 by ZKD</title>
     <!-- 載入 Tailwind CSS 用於樣式 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 載入 React 核心庫 -->
@@ -291,13 +291,14 @@
                                         {[...Array(GRID_SIZE)].map((_, r) => [...Array(GRID_SIZE)].map((_, c) => {
                                             const isZone = isOriginalZone(r, c);
                                             const overlapCount = gridOccupancy[r][c];
+                                            const isPreview = displayRoot && selectedType && currentCells.some(([dr, dc]) => displayRoot.r + dr === r && displayRoot.c + dc === c);
                                             return (
                                                 <div 
                                                     key={`${r}-${c}`} 
                                                     onMouseEnter={() => setHoverPos({r, c})} 
                                                     onTouchStart={() => setHoverPos({r, c})} 
                                                     onClick={() => onCellClick(r, c)} 
-                                                    className={`relative rounded-lg transition-all cursor-pointer border border-slate-700/30 ${isZone ? 'bg-slate-800/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] hover:bg-slate-700/90' : 'bg-slate-900/30'}`} 
+                                                    className={`relative rounded-lg transition-all cursor-pointer border border-slate-700/30 ${isZone ? 'bg-slate-800/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] hover:bg-slate-700/90' : 'bg-slate-900/30'} ${isPreview ? (overlapCount > 0 ? 'bg-red-500/50 border-red-400' : 'bg-white/30 border-white/50') : ''}`}
                                                     style={{ width: CELL_DISPLAY_SIZE, height: CELL_DISPLAY_SIZE }}
                                                 >
                                                     {overlapCount > 1 && (
@@ -370,5 +371,6 @@
     </script>
 </body>
 </html>
+
 
 
